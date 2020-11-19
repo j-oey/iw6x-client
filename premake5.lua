@@ -309,7 +309,7 @@ includedirs {"./src/runner", "%{prj.location}/src"}
 
 resincludedirs {"$(ProjectDir)src"}
 
-project "function_dumper"
+project "function-dumper"
 kind "ConsoleApp"
 language "C++"
 
@@ -323,6 +323,22 @@ dependencies.imports()
 
 group "Dependencies"
 dependencies.projects()
+
+group ""
+project "plugin-container"
+kind "WindowedApp"
+language "C++"
+
+architecture "x86"
+platforms "x86"
+
+files {"./src/plugin_container/**.rc", "./src/plugin_container/**.hpp", "./src/plugin_container/**.cpp", "./src/plugin_container/resources/**.*"}
+
+includedirs {"./src/plugin_container", "%{prj.location}/src"}
+
+resincludedirs {"$(ProjectDir)src"}
+
+dependencies.imports()
 
 rule "ProtobufCompiler"
 display "Protobuf compiler"
