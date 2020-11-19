@@ -35,6 +35,6 @@
 [submodule "deps/msvc-demangler"]
 	path = deps/msvc-demangler
 	url = https://github.com/rui314/msvc-demangler.git
-[submodule "deps/shadesmar"]
-	path = deps/shadesmar
-	url = https://github.com/Squadrick/shadesmar.git
+[submodule "deps/ipc"]
+	path = deps/ipc
+	url = https://github.com/jarikomppa/ipc.git
