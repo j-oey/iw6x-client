@@ -279,7 +279,7 @@ includedirs {"./src/client", "%{prj.location}/src"}
 
 resincludedirs {"$(ProjectDir)src"}
 
-dependson {"tlsdll", "runner"}
+dependson {"tlsdll", "runner", "plugin-container"}
 
 prebuildcommands {"pushd %{_MAIN_SCRIPT_DIR}", "tools\\premake5 generate-buildinfo", "popd"}
 
