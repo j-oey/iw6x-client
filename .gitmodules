@@ -35,3 +35,6 @@
 [submodule "deps/msvc-demangler"]
 	path = deps/msvc-demangler
 	url = https://github.com/rui314/msvc-demangler.git
+[submodule "deps/hw-breakpoint"]
+	path = deps/hw-breakpoint
+	url = https://github.com/mmeshi/hw-breakpoint.git

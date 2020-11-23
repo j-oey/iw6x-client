@@ -4,8 +4,13 @@
 #include "game/game.hpp"
 #include "utils/hook.hpp"
 
+#include <breakpoint.h>
+
+	extern "C" int bps = false;
+
 namespace arxan
-{
+	{
+
 	namespace
 	{
 		typedef struct _OBJECT_HANDLE_ATTRIBUTE_INFORMATION
@@ -70,11 +75,63 @@ namespace arxan
 			return STATUS_INVALID_HANDLE;
 		}
 
-		LONG WINAPI exception_filter(LPEXCEPTION_POINTERS info)
+		jmp_buf* get_buffer()
 		{
-			return (info->ExceptionRecord->ExceptionCode == STATUS_INVALID_HANDLE)
-				       ? EXCEPTION_CONTINUE_EXECUTION
-				       : EXCEPTION_CONTINUE_SEARCH;
+			static thread_local jmp_buf old_buffer;
+			return &old_buffer;
+		}
+
+#pragma warning(push)
+#pragma warning(disable: 4611)
+		void reset_state()
+		{
+			game::longjmp(get_buffer(), -1);
+		}
+#pragma warning(pop)
+
+		size_t get_reset_state_stub()
+		{
+			static auto* stub = utils::hook::assemble([](utils::hook::assembler& a)
+			{
+				a.sub(rsp, 0x10);
+				a.or_(rsp, 0x8);
+				a.jmp(reset_state);
+			});
+
+			return reinterpret_cast<size_t>(stub);
+		}
+
+	bool luuul = false;
+
+		LONG WINAPI exception_filter(const LPEXCEPTION_POINTERS info)
+		{
+			if (info->ExceptionRecord->ExceptionCode == STATUS_INVALID_HANDLE)
+			{
+				return EXCEPTION_CONTINUE_EXECUTION;
+			}
+			
+			if (info->ExceptionRecord->ExceptionCode == STATUS_ACCESS_VIOLATION)
+			{
+				const auto address = reinterpret_cast<size_t>(info->ExceptionRecord->ExceptionAddress);
+				if((address & ~0xFFFFFFF) == 0x280000000)
+				{
+					//MessageBoxA(nullptr, "Arxan Exception", "Oh fuck.", MB_ICONERROR);
+
+					info->ContextRecord->Rip = get_reset_state_stub();
+					return EXCEPTION_CONTINUE_EXECUTION;
+				}
+			}
+
+			if(info->ExceptionRecord->ExceptionCode ==STATUS_SINGLE_STEP && luuul ) {
+				//if(arxan::bps)
+				{
+					//MessageBoxA(0,"Single",0,0);
+					printf("Ex: %p %d\n", info->ExceptionRecord->ExceptionAddress, (int)bps);
+				}
+				return EXCEPTION_CONTINUE_EXECUTION;
+			}
+			
+			return EXCEPTION_CONTINUE_SEARCH;
 		}
 
 		void hide_being_debugged()
@@ -140,6 +197,121 @@ namespace arxan
 		}
 	}
 
+    inline void SetBits(ULONG_PTR& dw, int lowBit, int bits, int newValue)
+    {
+        int mask = (1 << bits) - 1; // e.g. 1 becomes 0001, 2 becomes 0011, 3 becomes 0111
+
+        dw = (dw & ~(mask << lowBit)) | (newValue << lowBit);
+    }
+
+	void setBP(void* addr)
+	{
+		CONTEXT cxt;
+            cxt.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+			auto hThread = GetCurrentThread();
+		
+           GetThreadContext(hThread, &cxt);
+
+auto index = 0;
+                SetBits(cxt.Dr7, index * 2, 1, 1);
+
+
+                    switch (index)
+                    {
+                    case 0: cxt.Dr0 = (DWORD_PTR)addr; break;
+                    case 1: cxt.Dr1 = (DWORD_PTR)addr; break;
+                    case 2: cxt.Dr2 = (DWORD_PTR)addr; break;
+                    case 3: cxt.Dr3 = (DWORD_PTR)addr; break;
+                    }
+
+                    SetBits(cxt.Dr7, 16 + (index * 4), 2, 1);
+                    SetBits(cxt.Dr7, 18 + (index * 4), 2, 8);
+
+           SetThreadContext(hThread, &cxt);
+	}
+
+	void* addr;
+
+	void install_lul(void* lul)
+	{
+		/*setBP(lul);
+		scheduler::once([lul]() {
+			setBP(lul);
+		}, scheduler::pipeline::server);*/
+		auto* xx = &bps;
+		
+		auto x = LoadLibraryA("PhysXDevice64.dll");
+		auto y = LoadLibraryA("PhysXUpdateLoader64.dll");
+
+		scheduler::once([lul]() {
+			//HWBreakpoint::Set(lul, HWBreakpoint::Condition::Write);
+		}, scheduler::pipeline::async);
+	}
+
+	void* get_stack_backup()
+	{
+		static thread_local char backup[0x1000];
+		return backup;
+	}
+	
+	void backup_stack(void* addr)
+	{
+		memcpy(get_stack_backup(), addr, 0x1000);
+	}
+
+	void restore_stack(void* addr)
+	{
+		memcpy(addr, get_stack_backup(), 0x1000);
+	}
+
+#pragma warning(push)
+#pragma warning(disable: 4611)
+	int save_state_intenal()
+	{
+		static bool installed = false;
+		if(!installed){
+			installed = true;
+		install_lul(_AddressOfReturnAddress());
+			//AddVectoredExceptionHandler(1, exception_filter);
+		}
+		bps = true;
+		luuul = true;
+		addr = _AddressOfReturnAddress();
+		printf("Pre: %p %p\n",_AddressOfReturnAddress(),  _ReturnAddress());
+
+		backup_stack(_AddressOfReturnAddress());
+		
+		const auto recovered = game::_setjmp(get_buffer());
+		if(recovered)
+		{
+			restore_stack(_AddressOfReturnAddress());
+			
+			printf("Recovering from arxan error...\n");
+			MessageBoxA(0,0,0,0);
+		}
+		printf("Post: %p %p\n",_AddressOfReturnAddress(),  _ReturnAddress());
+
+		bps = false;
+		//HWBreakpoint::ClearAll();
+		return recovered;
+	}
+#pragma warning(pop)
+
+	bool save_state()
+	{
+		return save_state_intenal() != 0;
+	}
+
+	void* memmv( void* _Dst, void const* _Src,  size_t _Size)
+    {
+		if(size_t(_Dst) <= size_t(addr) &&size_t(_Dst) + _Size >= size_t(addr) && bps) 
+		{
+			printf("OK");
+		}
+		
+	   return memmove(_Dst, _Src, _Size);
+    }
+
 	class component final : public component_interface
 	{
 	public:
@@ -175,6 +347,8 @@ namespace arxan
 			utils::hook::jump(0x140558C20, 0x140558CB0); // dwNetPump
 			utils::hook::jump(0x140591850, 0x1405918E0); // dwLobbyPump
 			utils::hook::jump(0x140589480, 0x140589490); // dwGetLogonStatus
+			
+			utils::hook::jump(0x140730160, memmv);
 
 			// These two are inlined with their synchronization. Need to work around that
 			//utils::hook::jump(0x14015EB9A, 0x140589E10); // dwLogOnStart

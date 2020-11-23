@@ -6,6 +6,7 @@
 #include "network.hpp"
 #include "scheduler.hpp"
 #include "server_list.hpp"
+#include "arxan.hpp"
 
 #include "steam/steam.hpp"
 
@@ -13,6 +14,8 @@
 #include "utils/info_string.hpp"
 #include "utils/cryptography.hpp"
 #include "utils/hook.hpp"
+
+#include <winnt.h>
 
 namespace party
 {
@@ -139,6 +142,52 @@ namespace party
 		network::send(target, "getInfo", connect_state.challenge);
 	}
 
+	std::string& get_mapname_store()
+	{
+		static std::string mapname;
+		return mapname;
+	}
+
+	void spawn_stored_map()
+	{
+		game::SV_StartMapForParty(0, get_mapname_store().data(), false, false);
+	}
+
+	void** get_stack_save()
+	{
+		static thread_local void* stack_save = nullptr;
+		return &stack_save;
+	}
+
+	void* spawn_map_swap_stack()
+	{
+		static auto* stub = utils::hook::assemble([](utils::hook::assembler& a)
+		{
+			a.pushad64();
+
+			a.call(get_stack_save);
+			a.mov(ptr(rax), rsp);
+			
+			a.sub(rsp, 0x10008);
+
+			a.call(spawn_stored_map);
+
+			a.call(get_stack_save);
+			a.mov(rsp, ptr(rax));
+			
+			a.popad64();
+			a.ret();
+		});
+
+		return stub;
+	}
+
+	void spawn_map_internal(const std::string& mapname)
+	{
+		get_mapname_store() = mapname;
+		static_cast<void(*)()>(spawn_map_swap_stack())();
+	}
+
 	void start_map(const std::string& mapname)
 	{
 		if (game::Live_SyncOnlineDataFlags(0) != 0)
@@ -153,7 +202,28 @@ namespace party
 		{
 			printf("Starting map: %s\n", mapname.data());
 			switch_gamemode_if_necessary(get_dvar_string("g_gametype"));
-			game::SV_StartMapForParty(0, mapname.data(), false, false);
+
+			auto _ = gsl::finally([]() {
+				printf("OK");
+			});
+
+			// This is bad, but it works for now
+			static bool arxan= false;
+			if(!arxan::save_state())
+			{
+				if(!arxan) {
+				command::execute("map " + mapname);
+				}
+			}
+			else
+			{
+				arxan = true;
+				command::execute("disconnect");
+				//command::execute("map " + mapname);
+				return;
+			}
+
+			spawn_map_internal(mapname);
 		}
 	}
 	
