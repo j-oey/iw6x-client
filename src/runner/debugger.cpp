@@ -87,6 +87,7 @@ static std::unordered_map<size_t, size_t> lulMap = {
 	{0x140035EA7, 0x14A8BDC44},
 	{0x14A0B52A8, 0x149D7DFCE},
 	{0x14B1A892E, 0x14B00A068},
+	{0x14AEF4F39, 0x14AAEE1FC},
 };
 
 void debugger::run(const unsigned long process_id) const
@@ -107,9 +108,9 @@ void debugger::run(const unsigned long process_id) const
 		{
 			if(event.u.Exception.ExceptionRecord.ExceptionCode == STATUS_ACCESS_VIOLATION)
 			{
-				snprintf(data, sizeof(data), "Violation: %p %p\n", event.u.Exception.ExceptionRecord.ExceptionAddress, event.u.Exception.ExceptionRecord.ExceptionInformation[1]);
+				snprintf(data, sizeof(data), "Violation: %p %p\n", event.u.Exception.ExceptionRecord.ExceptionAddress, (void*)event.u.Exception.ExceptionRecord.ExceptionInformation[1]);
 				OutputDebugStringA(data);
-				TerminateProcess(OpenProcess(PROCESS_ALL_ACCESS, false, event.dwProcessId), -1);
+				TerminateProcess(OpenProcess(PROCESS_ALL_ACCESS, false, event.dwProcessId), 1);
 				OutputDebugStringA("================\n");
 				OutputDebugStringA("We crashed\n");
 				OutputDebugStringA("================\n");
