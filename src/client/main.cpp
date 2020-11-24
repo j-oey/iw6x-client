@@ -59,6 +59,9 @@ FARPROC load_binary(const launcher::mode mode)
 			return system_parameters_info_a;
 		}
 
+		OutputDebugStringA(function.data());
+		OutputDebugStringA("\n");
+
 		return component_loader::load_import(library, function);
 	});
 

@@ -6,7 +6,7 @@
 
 #include <breakpoint.h>
 
-	extern "C" int bps = false;
+int bps = false;
 
 namespace arxan
 	{
@@ -101,6 +101,9 @@ namespace arxan
 			return reinterpret_cast<size_t>(stub);
 		}
 
+	thread_local void* value_save;
+	thread_local void* address_save;
+
 	bool luuul = false;
 
 		LONG WINAPI exception_filter(const LPEXCEPTION_POINTERS info)
@@ -112,6 +115,13 @@ namespace arxan
 			
 			if (info->ExceptionRecord->ExceptionCode == STATUS_ACCESS_VIOLATION)
 			{
+				const auto address1 = reinterpret_cast<size_t>(info->ExceptionRecord->ExceptionInformation[1]);
+				if(address1 == 0x1337)
+				{
+					info->ContextRecord->EFlags |= 0x100;
+					return EXCEPTION_CONTINUE_EXECUTION;
+				}
+				
 				const auto address = reinterpret_cast<size_t>(info->ExceptionRecord->ExceptionAddress);
 				if((address & ~0xFFFFFFF) == 0x280000000)
 				{
@@ -122,11 +132,15 @@ namespace arxan
 				}
 			}
 
-			if(info->ExceptionRecord->ExceptionCode ==STATUS_SINGLE_STEP && luuul ) {
-				//if(arxan::bps)
+			if(info->ExceptionRecord->ExceptionCode ==STATUS_SINGLE_STEP) {
+				if(bps)
 				{
-					//MessageBoxA(0,"Single",0,0);
-					printf("Ex: %p %d\n", info->ExceptionRecord->ExceptionAddress, (int)bps);
+					if(*(void**)address_save != value_save) {
+						MessageBoxA(0,"It happened!",0,0);
+					}
+				}
+				else {
+					info->ContextRecord->EFlags &= ~0x100;
 				}
 				return EXCEPTION_CONTINUE_EXECUTION;
 			}
@@ -271,10 +285,15 @@ auto index = 0;
 		static bool installed = false;
 		if(!installed){
 			installed = true;
-		install_lul(_AddressOfReturnAddress());
+		//install_lul(_AddressOfReturnAddress());
 			//AddVectoredExceptionHandler(1, exception_filter);
 		}
 		bps = true;
+		address_save = _AddressOfReturnAddress();
+		value_save = _ReturnAddress();
+		
+		*(int*)0x1337 = 0;
+		
 		luuul = true;
 		addr = _AddressOfReturnAddress();
 		printf("Pre: %p %p\n",_AddressOfReturnAddress(),  _ReturnAddress());

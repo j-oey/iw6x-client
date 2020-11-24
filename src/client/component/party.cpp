@@ -17,6 +17,10 @@
 
 #include <winnt.h>
 
+extern int bps;
+utils::hook::detour vp_hook;
+utils::hook::detour vpex_hook;
+
 namespace party
 {
 	namespace
@@ -159,6 +163,53 @@ namespace party
 		return &stack_save;
 	}
 
+DWORD old;
+	void setup_guard_page()
+	{
+		auto x = (char*)(*get_stack_save()) - 0x1000;
+		printf("Protecting: %p - %p\n", x, x + 0x2000);
+		
+		vp_hook.invoke<void>(x, 0x2000, PAGE_READONLY, &old);
+	}
+
+BOOL
+WINAPI
+VirtualProtect_(
+    _In_  LPVOID lpAddress,
+    _In_  SIZE_T dwSize,
+    _In_  DWORD flNewProtect,
+    _Out_ PDWORD lpflOldProtect
+    )
+	{
+		if(bps) {
+			return true;
+		}
+		
+		return vp_hook.invoke<BOOL>(lpAddress, dwSize, flNewProtect, lpflOldProtect);
+	}
+
+BOOL
+WINAPI
+VirtualProtectEx_(
+     HANDLE hProcess,
+    LPVOID lpAddress,
+    SIZE_T dwSize,
+    DWORD flNewProtect,
+    PDWORD lpflOldProtect
+    )
+	{
+	if(bps) {
+		return true;
+	}
+		
+		return vpex_hook.invoke<BOOL>(hProcess, lpAddress, dwSize, flNewProtect, lpflOldProtect);
+	}
+
+	void restore_guard_page()
+	{
+		vp_hook.invoke<void>((char*)(*get_stack_save()) - 0x1000, 0x2000, old, &old);
+	}
+
 	void* spawn_map_swap_stack()
 	{
 		static auto* stub = utils::hook::assemble([](utils::hook::assembler& a)
@@ -170,7 +221,11 @@ namespace party
 			
 			a.sub(rsp, 0x10008);
 
+			a.call(setup_guard_page);
+
 			a.call(spawn_stored_map);
+
+			a.call(restore_guard_page);
 
 			a.call(get_stack_save);
 			a.mov(rsp, ptr(rax));
@@ -246,6 +301,9 @@ namespace party
 			{
 				return;
 			}
+
+			vp_hook.create(VirtualProtect, VirtualProtect_);
+			vpex_hook.create(VirtualProtectEx, VirtualProtectEx_);
 
 			didyouknow_hook.create(game::Dvar_SetString, didyouknow_stub);
 
