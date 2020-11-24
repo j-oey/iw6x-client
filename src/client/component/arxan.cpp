@@ -6,7 +6,11 @@
 
 #include <breakpoint.h>
 
+#include "utils/string.hpp"
+
 int bps = false;
+size_t watchAddr = 0x13EE198;
+static bool __installed = false;
 
 namespace arxan
 	{
@@ -115,12 +119,12 @@ namespace arxan
 			
 			if (info->ExceptionRecord->ExceptionCode == STATUS_ACCESS_VIOLATION)
 			{
-				const auto address1 = reinterpret_cast<size_t>(info->ExceptionRecord->ExceptionInformation[1]);
+				/*const auto address1 = reinterpret_cast<size_t>(info->ExceptionRecord->ExceptionInformation[1]);
 				if(address1 == 0x1337)
 				{
 					info->ContextRecord->EFlags |= 0x100;
 					return EXCEPTION_CONTINUE_EXECUTION;
-				}
+				}*/
 				
 				const auto address = reinterpret_cast<size_t>(info->ExceptionRecord->ExceptionAddress);
 				if((address & ~0xFFFFFFF) == 0x280000000)
@@ -132,16 +136,40 @@ namespace arxan
 				}
 			}
 
-			if(info->ExceptionRecord->ExceptionCode ==STATUS_SINGLE_STEP) {
-				if(bps)
-				{
-					if(*(void**)address_save != value_save) {
-						MessageBoxA(0,"It happened!",0,0);
+			static thread_local bool wassinglestep = false;
+			if(info->ExceptionRecord->ExceptionCode ==STATUS_SINGLE_STEP && __installed) {
+				if(wassinglestep) {
+					wassinglestep = false;
+					info->ContextRecord->EFlags &= ~0x100;
+					auto val = *(void**)watchAddr;
+					OutputDebugStringA(utils::string::va("Val: %p\n", val));
+
+					if((size_t(val) & ~0xFFFFFFF) == 0x280000000)
+					{
+						printf("Ded\n");
+					}
+					
+				} else /*if(0x14A9267F6 == size_t(info->ExceptionRecord->ExceptionAddress))*/ {
+					OutputDebugStringA(utils::string::va("Ex: %p\n", info->ExceptionRecord->ExceptionAddress));
+					info->ContextRecord->EFlags |= 0x100;
+					wassinglestep = true;
+
+					if(0x140036CDC == size_t(info->ExceptionRecord->ExceptionAddress)) {
+						printf("NOW\n");
 					}
 				}
-				else {
-					info->ContextRecord->EFlags &= ~0x100;
+				
+				//if(bps)
+				{
+					/*if(*(void**)address_save != value_save) {
+						MessageBoxA(0,"It happened!",0,0);
+					}*/
+					
 				}
+				//else {
+					//info->ContextRecord->EFlags &= ~0x100;
+				//	return EXCEPTION_CONTINUE_SEARCH;
+				//}
 				return EXCEPTION_CONTINUE_EXECUTION;
 			}
 			
@@ -248,10 +276,10 @@ auto index = 0;
 
 	void install_lul(void* lul)
 	{
-		/*setBP(lul);
-		scheduler::once([lul]() {
-			setBP(lul);
-		}, scheduler::pipeline::server);*/
+		setBP((void*)watchAddr);
+		//scheduler::once([lul]() {
+			//setBP(lul);
+		//}, scheduler::pipeline::server);
 		auto* xx = &bps;
 		
 		auto x = LoadLibraryA("PhysXDevice64.dll");
@@ -282,17 +310,17 @@ auto index = 0;
 #pragma warning(disable: 4611)
 	int save_state_intenal()
 	{
-		static bool installed = false;
-		if(!installed){
-			installed = true;
-		//install_lul(_AddressOfReturnAddress());
+		
+		if(!__installed){
+			__installed = true;
+		install_lul(_AddressOfReturnAddress());
 			//AddVectoredExceptionHandler(1, exception_filter);
 		}
 		bps = true;
 		address_save = _AddressOfReturnAddress();
 		value_save = _ReturnAddress();
 		
-		*(int*)0x1337 = 0;
+		//*(int*)0x1337 = 0;
 		
 		luuul = true;
 		addr = _AddressOfReturnAddress();
