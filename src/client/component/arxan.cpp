@@ -133,7 +133,9 @@ namespace arxan
 				{
 					//MessageBoxA(nullptr, "Arxan Exception", "Oh fuck.", MB_ICONERROR);
 
-					info->ContextRecord->Rip = get_reset_state_stub();
+					//info->ContextRecord->Rip = get_reset_state_stub();
+					info->ContextRecord->Rip -= 0x140000000;
+					info->ContextRecord->Rsp += 0x8;
 					return EXCEPTION_CONTINUE_EXECUTION;
 				}
 			}
@@ -395,8 +397,8 @@ auto index = 0;
 		
 		if(!__installed){
 			__installed = true;
-		install_lul(_AddressOfReturnAddress());
-			lul_::debug_self();
+		//install_lul(_AddressOfReturnAddress());
+			//lul_::debug_self();
 			//AddVectoredExceptionHandler(1, exception_filter);
 		}
 		bps = true;
@@ -479,6 +481,22 @@ auto index = 0;
 			utils::hook::jump(0x140589480, 0x140589490); // dwGetLogonStatus
 			
 			utils::hook::jump(0x140730160, memmv);
+
+			// Fix arxan crashes
+			// Are these opaque predicates?
+			//utils::hook::nop(0x14A47068E, 6);
+			//utils::hook::nop(0x14AE2B384, 6);
+			
+			/*utils::hook::nop(0x14005556F, 4);
+			utils::hook::nop(0x14A49789D, 4);
+			utils::hook::nop(0x14AE386F1, 4);*/
+
+			const auto result = "48 B8 ? ? ? ? ? ? ? ? 48 0F 46 D8"_sig;
+			for(size_t i = 0; i < result.count(); ++i)
+			{
+				//utils::hook::nop(result.get(i) + 10, 4);
+				//utils::hook::set<DWORD>(result.get(i) + 10, 0x90C38948);
+			}
 
 			// These two are inlined with their synchronization. Need to work around that
 			//utils::hook::jump(0x14015EB9A, 0x140589E10); // dwLogOnStart

@@ -98,7 +98,7 @@ void debugger::run(const unsigned long process_id) const
 		return;
 	}
 
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+	//SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 	static char data[0x10000];
 	
 	DEBUG_EVENT event;
