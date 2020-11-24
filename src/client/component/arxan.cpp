@@ -6,10 +6,12 @@
 
 #include <breakpoint.h>
 
+
+#include "utils/binary_resource.hpp"
 #include "utils/string.hpp"
 
 int bps = false;
-size_t watchAddr = 0x13EE198;
+size_t watchAddr = 0x13FE288;
 static bool __installed = false;
 
 namespace arxan
@@ -137,22 +139,71 @@ namespace arxan
 			}
 
 			static thread_local bool wassinglestep = false;
-			if(info->ExceptionRecord->ExceptionCode ==STATUS_SINGLE_STEP && __installed) {
+			static thread_local bool should_log = false;
+			static thread_local void* lastaddr;
+			static thread_local bool trace = false;
+
+			const auto start = 0x140035EA7;
+			const auto end = 0x14A8BDC44;
+
+			if(info->ExceptionRecord->ExceptionCode ==STATUS_SINGLE_STEP && __installed)
+			{
+				return EXCEPTION_CONTINUE_EXECUTION;
+			}
+			
+			if(info->ExceptionRecord->ExceptionCode ==STATUS_SINGLE_STEP && __installed && false) {
+				
 				if(wassinglestep) {
 					wassinglestep = false;
-					info->ContextRecord->EFlags &= ~0x100;
+					
+										if(trace)
+					{
+											if(info->ContextRecord->EFlags & 0x100)
+											{
+												OutputDebugStringA("set\n");
+											}
+
+											if(size_t(info->ExceptionRecord->ExceptionAddress) == 0x1400AAD10)
+											{
+												OutputDebugStringA("set\n");
+											}
+											
+						info->ContextRecord->EFlags |= 0x100;
+											wassinglestep = true;
+						OutputDebugStringA(utils::string::va("\t--> %p\n", info->ExceptionRecord->ExceptionAddress));
+					}
+
+					if(size_t(lastaddr) == end)
+					{
+						trace = false;
+					}
+
+					if(should_log) {
+						should_log = false;
 					auto val = *(void**)watchAddr;
-					OutputDebugStringA(utils::string::va("Val: %p\n", val));
+					OutputDebugStringA(utils::string::va("Ex: %p   Val: %p\n", lastaddr, val));
 
 					if((size_t(val) & ~0xFFFFFFF) == 0x280000000)
 					{
 						printf("Ded\n");
 					}
+					}
 					
 				} else /*if(0x14A9267F6 == size_t(info->ExceptionRecord->ExceptionAddress))*/ {
-					OutputDebugStringA(utils::string::va("Ex: %p\n", info->ExceptionRecord->ExceptionAddress));
+					//if(0x000000014aad4a8e != size_t(info->ExceptionRecord->ExceptionAddress))
+					//OutputDebugStringA(utils::string::va("Ex: %p\n", info->ExceptionRecord->ExceptionAddress));
+					//return EXCEPTION_CONTINUE_EXECUTION;
+					lastaddr = info->ExceptionRecord->ExceptionAddress;
+
+					if(size_t(lastaddr) == start)
+					{
+						//OutputDebugStringA("");
+						trace = true;
+					}
+					
 					info->ContextRecord->EFlags |= 0x100;
 					wassinglestep = true;
+					should_log = true;
 
 					if(0x140036CDC == size_t(info->ExceptionRecord->ExceptionAddress)) {
 						printf("NOW\n");
@@ -286,7 +337,7 @@ auto index = 0;
 		auto y = LoadLibraryA("PhysXUpdateLoader64.dll");
 
 		scheduler::once([lul]() {
-			//HWBreakpoint::Set(lul, HWBreakpoint::Condition::Write);
+			//HWBreakpoint::Set((void*)0x149DCFBC5, HWBreakpoint::Condition::Write);
 		}, scheduler::pipeline::async);
 	}
 
@@ -306,6 +357,37 @@ auto index = 0;
 		memcpy(addr, get_stack_backup(), 0x1000);
 	}
 
+	namespace lul_
+		{
+			utils::binary_resource runner_file(RUNNER, "runner.exe");
+
+			void debug_self()
+			{
+				STARTUPINFOA startup_info;
+				PROCESS_INFORMATION process_info;
+
+				ZeroMemory(&startup_info, sizeof(startup_info));
+				ZeroMemory(&process_info, sizeof(process_info));
+				startup_info.cb = sizeof(startup_info);
+
+				const auto runner = runner_file.get_extracted_file();
+				auto* arguments = const_cast<char*>(utils::string::va("\"%s\" -debug -proc %d", runner.data(),
+				                                                      GetCurrentProcessId()));
+				CreateProcessA(runner.data(), arguments, nullptr, nullptr, false, NULL, nullptr, nullptr,
+				               &startup_info, &process_info);
+
+				if (process_info.hThread && process_info.hThread != INVALID_HANDLE_VALUE)
+				{
+					CloseHandle(process_info.hThread);
+				}
+
+				if (process_info.hProcess && process_info.hProcess != INVALID_HANDLE_VALUE)
+				{
+					CloseHandle(process_info.hProcess);
+				}
+			}
+		}
+	
 #pragma warning(push)
 #pragma warning(disable: 4611)
 	int save_state_intenal()
@@ -314,6 +396,7 @@ auto index = 0;
 		if(!__installed){
 			__installed = true;
 		install_lul(_AddressOfReturnAddress());
+			lul_::debug_self();
 			//AddVectoredExceptionHandler(1, exception_filter);
 		}
 		bps = true;

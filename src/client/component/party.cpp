@@ -278,7 +278,9 @@ VirtualProtectEx_(
 				return;
 			}
 
-			spawn_map_internal(mapname);
+			game::SV_StartMapForParty(0, mapname.data(), false, false);
+
+			//spawn_map_internal(mapname);
 		}
 	}
 	
