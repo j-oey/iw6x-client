@@ -84,10 +84,11 @@ void* read_data(DWORD pid, void* addr)
 }
 
 static std::unordered_map<size_t, size_t> lulMap = {
-	{0x140035EA7, 0x14A8BDC44},
-	{0x14A0B52A8, 0x149D7DFCE},
-	{0x14B1A892E, 0x14B00A068},
-	{0x14AEF4F39, 0x14AAEE1FC},
+	//{0x140035EA7, 0x14A8BDC44},
+	//{0x14A0B52A8, 0x149D7DFCE},
+	//{0x14B1A892E, 0x14B00A068},
+	//{0x14AEF4F39, 0x14AAEE1FC},
+	//{0x14A143BFF, 0x1400BB3C8},
 };
 
 void debugger::run(const unsigned long process_id) const
