@@ -97,6 +97,12 @@ namespace steam
 		static std::vector<base*> callback_list_;
 	};
 
+	STEAM_EXPORT void* SteamAPI_GetHSteamUser();
+	STEAM_EXPORT void* SteamAPI_GetHSteamPipe();
+	STEAM_EXPORT void* SteamGameServer_GetHSteamPipe();
+	STEAM_EXPORT void* SteamGameServer_GetHSteamUser();
+	STEAM_EXPORT void* SteamInternal_CreateInterface(const char* ver);
+
 	STEAM_EXPORT bool SteamAPI_RestartAppIfNecessary();
 	STEAM_EXPORT bool SteamAPI_Init();
 	STEAM_EXPORT void SteamAPI_RegisterCallResult(callbacks::base* result, uint64_t call);
@@ -108,6 +114,7 @@ namespace steam
 	STEAM_EXPORT const char* SteamAPI_GetSteamInstallPath();
 
 	STEAM_EXPORT bool SteamGameServer_Init();
+	STEAM_EXPORT bool SteamInternal_GameServer_Init();
 	STEAM_EXPORT void SteamGameServer_RunCallbacks();
 	STEAM_EXPORT void SteamGameServer_Shutdown();
 

@@ -166,7 +166,7 @@ namespace arxan
 		void post_unpack() override
 		{
 			// cba to implement sp, not sure if it's even needed
-			if (game::environment::is_sp()) return;
+			/*if (game::environment::is_sp()) return;
 
 			utils::hook::jump(0x1404FE1E0, 0x1404FE2D0); // idk
 			utils::hook::jump(0x140558C20, 0x140558CB0); // dwNetPump
@@ -188,9 +188,14 @@ namespace arxan
 			utils::hook::nop(0x14A1A2425, 4); // 000000014A0B52A8
 			utils::hook::nop(0x14AE07CEA, 4); // 000000014A143BFF
 
-			scheduler::on_game_initialized(remove_hardware_breakpoints, scheduler::pipeline::main);
+			scheduler::on_game_initialized(remove_hardware_breakpoints, scheduler::pipeline::main);*/
 		}
 	};
 }
 
 REGISTER_COMPONENT(arxan::component)
+
+namespace
+{
+	component_loader::installer<arxan::component> __component;
+}

@@ -100,6 +100,33 @@ namespace steam
 	}
 
 	extern "C" {
+	void* SteamAPI_GetHSteamUser()
+	{
+		static char buf[100];
+		return buf;
+	}
+	void* SteamAPI_GetHSteamPipe()
+	{
+		static char buf[100];
+		return buf;
+	}
+	void* SteamGameServer_GetHSteamPipe()
+	{
+		static char buf[100];
+		return buf;
+	}
+	void* SteamGameServer_GetHSteamUser()
+	{
+		static char buf[100];
+		return buf;
+	}
+
+	void* SteamInternal_CreateInterface(const char* ver)
+	{
+		MessageBoxA(0, ver, "interface",0);
+		return nullptr;
+	}
+		
 	bool SteamAPI_RestartAppIfNecessary()
 	{
 		return false;
@@ -166,6 +193,11 @@ namespace steam
 
 
 	bool SteamGameServer_Init()
+	{
+		return true;
+	}
+		
+	bool SteamInternal_GameServer_Init()
 	{
 		return true;
 	}

@@ -54,8 +54,10 @@ private:
 	static std::vector<std::unique_ptr<component_interface>>& get_components();
 };
 
-#define REGISTER_COMPONENT(name)                       \
+/*#define REGISTER_COMPONENT(name)                       \
 namespace                                           \
 {                                                   \
 	static component_loader::installer<name> __component; \
 }
+*/
+#define REGISTER_COMPONENT(name)
