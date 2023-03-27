@@ -323,6 +323,48 @@ namespace gsc
 				const auto cmd = get_argument(0).as<std::string>();
 				command::execute(cmd);
 			});
+
+			add_function("instashoot", []
+			{
+				const auto entnum = get_argument(0).as<int>();
+				const game::mp::gentity_s* ent = &game::mp::g_entities[entnum];
+
+				ent->client->ps.weapState[0x0].weaponDelay = 0;
+				ent->client->ps.weapState[0x0].weaponRestrictKickTime = 0;
+				ent->client->ps.weapState[0x0].weaponState = 0;
+				ent->client->ps.weapState[0x0].weaponTime = 0;
+				ent->client->ps.weapState[0x1].weaponDelay = 0;
+				ent->client->ps.weapState[0x1].weaponRestrictKickTime = 0;
+				ent->client->ps.weapState[0x1].weaponState = 0;
+				ent->client->ps.weapState[0x1].weaponTime = 0;
+			});
+
+			add_function("setanimation", []
+			{
+				const auto ent_num = get_argument(0).as<int>();
+				const game::mp::gentity_s* ent = &game::mp::g_entities[ent_num];
+
+				auto anim = get_argument(1).as<int>();
+				ent->client->ps.weapState->weapAnim = anim;
+
+				switch (anim)
+				{
+					case 1:
+					case 19:
+						ent->client->ps.weapState[0x0].weaponDelay = 0;
+						ent->client->ps.weapState[0x0].weaponRestrictKickTime = 0;
+						ent->client->ps.weapState[0x0].weaponState = 0;
+						ent->client->ps.weapState[0x0].weaponTime = 0;
+						ent->client->ps.weapState[0x1].weaponDelay = 0;
+						ent->client->ps.weapState[0x1].weaponRestrictKickTime = 0;
+						ent->client->ps.weapState[0x1].weaponState = 0;
+						ent->client->ps.weapState[0x1].weaponTime = 0;
+						break;
+
+					default:
+						break;
+				}
+			});
 		}
 	};
 }
